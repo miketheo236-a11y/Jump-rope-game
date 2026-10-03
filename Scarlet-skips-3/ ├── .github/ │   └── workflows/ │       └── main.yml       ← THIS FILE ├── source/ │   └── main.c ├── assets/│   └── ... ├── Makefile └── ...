@@ -1,0 +1,61 @@
+name: Build Scarlet Skips
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: devkitpro/devkitarm:latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install 3DS development libraries
+        run: |
+          dkp-pacman -Syyu --noconfirm
+          dkp-pacman -S --needed --noconfirm 3ds-dev
+
+      - name: Install bannertool and makerom
+        run: |
+          wget https://github.com/diasurgical/bannertool/releases/download/1.2.0/bannertool.zip
+          unzip -j bannertool.zip linux-x86_64/bannertool -d /opt/devkitpro/tools/bin
+
+          wget https://github.com/3DSGuy/Project_CTR/releases/download/makerom-v0.18/makerom-v0.18-ubuntu_x86_64.zip
+          unzip -j makerom-v0.18-ubuntu_x86_64.zip makerom -d /opt/devkitpro/tools/bin
+
+          chmod +x /opt/devkitpro/tools/bin/bannertool
+          chmod +x /opt/devkitpro/tools/bin/makerom
+
+      - name: Show installed 3DS tools
+        run: |
+          echo "DEVKITPRO=$DEVKITPRO"
+          echo "DEVKITARM=$DEVKITARM"
+          dkp-pacman -Q | grep -E '3ds-dev|libctru|citro2d|citro3d'
+          which arm-none-eabi-gcc
+          which bannertool
+          which makerom
+
+      - name: Build Scarlet Skips
+        run: |
+          make clean
+          make
+
+      - name: Check build output
+        run: |
+          echo "Build directory:"
+          find . -maxdepth 3 -type f \
+            \( -name "*.cia" -o -name "*.3dsx" -o -name "*.smdh" \) \
+            -print
+
+      - name: Upload Scarlet Skips
+        uses: actions/upload-artifact@v4
+        with:
+          name: scarlet-skips
+          path: |
+            ScarletSkips.cia
+            ScarletSkips.3dsx
+            ScarletSkips.smdh
+          if-no-files-found: error
